@@ -1,0 +1,8 @@
+services:
+  clean_contents.cleanup_service:
+    class: Drupal\clean_contents\Service\ContentCleanupService
+    arguments: ['@entity_type.manager', '@database', '@logger.factory']
+  
+  clean_contents.orphan_detection_service:
+    class: Drupal\clean_contents\Service\OrphanDetectionService
+    arguments: ['@entity_type.manager', '@database', '@entity_field.manager']

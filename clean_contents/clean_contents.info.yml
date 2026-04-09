@@ -1,0 +1,10 @@
+name: 'Clean Contents'
+type: module
+description: 'Drush commands for cleaning unpublished and orphaned content entities, and sanitizing users'
+core_version_requirement: ^9 || ^10 || ^11
+package: 'Drupal Gung AI'
+dependencies:
+  - drupal:node
+  - drupal:paragraphs
+  - drupal:media
+  - drupal:user

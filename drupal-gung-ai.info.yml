@@ -1,0 +1,5 @@
+name: 'Drupal Gung AI'
+type: module
+description: 'AI-powered Drupal development and automation tools created by Gung.'
+core_version_requirement: ^10 || ^11
+package: 'Custom'

@@ -1,0 +1,6 @@
+services:
+  clean_contents.commands:
+    class: Drupal\clean_contents\Commands\CleanContentsCommands
+    arguments: ['@clean_contents.cleanup_service', '@clean_contents.orphan_detection_service']
+    tags:
+      - { name: drush.command }
