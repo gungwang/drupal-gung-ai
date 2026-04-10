@@ -19,7 +19,11 @@ Drush-based content cleanup and sanitization tool for development and staging en
 - Fix broken path aliases and redirects
 - Rename users to test accounts
 
-**Documentation:** See `clean_contents/README.md`
+
+**Documentation:**
+- See `clean_contents/README.md`
+- Specification: `SPEC-clean-contents-module.md`
+- Implementation session log: `SESSION-clean-contents-implementation.md`
 
 ## Installation
 

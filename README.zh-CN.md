@@ -61,6 +61,8 @@ ddev drush en clean_contents
 - 查看各个子模块的 README 文件了解详细文档
 - 查看 watchdog 日志：`drush wd-show`
 - 参考 `ai/` 目录中的规格说明文档
+- 查看详细规范：`SPEC-clean-contents-module.zh-CN.md`
+- 查看实现记录：`SESSION-clean-contents-implementation.zh-CN.md`
 
 ## 授权协议
 
