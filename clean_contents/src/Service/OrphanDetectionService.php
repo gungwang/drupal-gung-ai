@@ -411,12 +411,10 @@ class OrphanDetectionService {
           // Determine table and column names.
           $table = $entity_type_id . '__' . $field_name;
 
-          if ($field_type === 'entity_reference_revisions') {
-            $column = $field_name . '_target_revision_id';
-          }
-          else {
-            $column = $field_name . '_target_id';
-          }
+          // Always use _target_id to compare against entity IDs.
+          // Using _target_revision_id would compare revision IDs against
+          // entity IDs, causing nearly all entities to appear orphaned.
+          $column = $field_name . '_target_id';
 
           $fields[] = [
             'entity_type' => $entity_type_id,

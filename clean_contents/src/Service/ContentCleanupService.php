@@ -119,9 +119,12 @@ class ContentCleanupService {
   public function deleteUnpublished($entity_type_id = NULL, $dry_run = FALSE) {
     $results = [];
 
+    // Note: 'paragraph' is intentionally excluded. Paragraphs are child
+    // entities whose status field is independent of their parent node's
+    // published state. A published node can contain paragraphs with status=0.
+    // Paragraphs should only be cleaned via orphan detection, not by status.
     $types_to_clean = $entity_type_id ? [$entity_type_id] : [
       'node',
-      'paragraph',
       'media',
       'block_content',
       'marketo_form',
