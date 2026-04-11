@@ -1,6 +1,6 @@
-> WARNING
-> Do NOT run Drush commands without `--dry-run`. There is a serious bug affecting node and paragraph deletion.
-> Backup your database first.
+# WARNING #
+## Do NOT run Drush commands without `--dry-run`. There is a serious bug affecting node and paragraph deletion.
+## Backup your database first.
 
 # Clean Contents Module
 
