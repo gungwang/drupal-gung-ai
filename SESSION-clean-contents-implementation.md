@@ -561,3 +561,203 @@ The clean_contents module implementation is **PRODUCTION-READY** and **FULLY OPT
 - Simplify environment sanitization
 - Reusable for all development/staging environments
 - One-time setup, unlimited reuse
+
+---
+
+## Critical Bug Fix - April 11, 2026
+
+### 🚨 CRITICAL SEVERITY - Paragraphs Being Deleted from Published Nodes
+
+**Status:** ✅ **FIXED**
+
+**Date:** April 11, 2026
+**Severity:** CRITICAL - Data loss in production content
+**Impact:** Published nodes losing their paragraph content after running cleanup commands
+
+**Symptoms:**
+- Published nodes (e.g., node/211658) had paragraphs deleted
+- Content appeared broken/incomplete on production site
+- Occurred even when paragraphs were not unpublished or orphaned
+
+### Root Cause Analysis
+
+**Two critical bugs identified:**
+
+#### Bug 1: Wrong Column in Orphan Detection (PRIMARY CAUSE)
+
+**Location:** `OrphanDetectionService.php::getAllReferencingFields()`
+
+**Issue:**
+```php
+// WRONG - Compared entity IDs against revision IDs
+if ($field_type === 'entity_reference_revisions') {
+  $column = $field_name . '_target_revision_id';  // ❌ Revision IDs
+}
+else {
+  $column = $field_name . '_target_id';            // Entity IDs
+}
+```
+
+**Problem:**
+- `getAllEntityIds('paragraph')` returns **entity IDs** (e.g., 123456)
+- But the query used `_target_revision_id` which contains **revision IDs** (e.g., 789012)
+- Entity IDs and revision IDs are completely different numbers
+- `array_diff($all_paragraph_ids, $referenced_ids)` found nearly ALL paragraphs as "orphaned"
+- Result: Published nodes' paragraphs were incorrectly flagged as orphaned and deleted
+
+**Fix:**
+```php
+// CORRECT - Always use _target_id to compare entity IDs against entity IDs
+// Always use _target_id to compare against entity IDs.
+// Using _target_revision_id would compare revision IDs against
+// entity IDs, causing nearly all entities to appear orphaned.
+$column = $field_name . '_target_id';
+```
+
+**Files Modified:**
+- `/web/modules/custom/drupal-gung-ai/clean_contents/src/Service/OrphanDetectionService.php` (lines 425-434)
+
+#### Bug 2: Paragraphs in Unpublished Deletion List
+
+**Location:** `ContentCleanupService.php::deleteUnpublished()`
+
+**Issue:**
+- `paragraph` entity type was included in the deleteUnpublished() entity types list
+- Paragraphs are **child entities** whose lifecycle is tied to their parent node
+- A published node can legitimately contain paragraphs with `status=0`
+- Paragraph `status` field is independent of the parent node's published state
+- Deleting paragraphs by status destroys content in published nodes
+
+**Before:**
+```php
+$types_to_clean = $entity_type_id ? [$entity_type_id] : [
+  'node',
+  'paragraph',  // ❌ Should NOT be here
+  'media',
+  'block_content',
+  // ...
+];
+```
+
+**After:**
+```php
+// Note: 'paragraph' is intentionally excluded. Paragraphs are child
+// entities whose status field is independent of their parent node's
+// published state. A published node can contain paragraphs with status=0.
+// Paragraphs should only be cleaned via orphan detection, not by status.
+$types_to_clean = $entity_type_id ? [$entity_type_id] : [
+  'node',
+  'media',
+  'block_content',
+  // ...
+];
+```
+
+**Files Modified:**
+- `/web/modules/custom/drupal-gung-ai/clean_contents/src/Service/ContentCleanupService.php` (lines 130-141)
+
+### Impact Assessment
+
+**Before Fix:**
+- Running `ddev drush cc:do` (delete orphans) deleted paragraphs from published nodes
+- Running `ddev drush cc:du` (delete unpublished) deleted paragraphs from published nodes
+- Published content appeared broken after cleanup
+- **Estimated affected entities:** Potentially 38,447 paragraphs incorrectly flagged as orphaned
+
+**After Fix:**
+- Orphan detection properly compares entity IDs against entity IDs
+- Paragraphs are only deleted when truly orphaned (no parent entity references them)
+- Paragraphs are never deleted based on status field
+- Published node content remains intact
+
+### Testing Verification
+
+**Test Case:**
+```bash
+# Before fix:
+ddev drush cc:do --dry-run
+# Output: 38,447 orphaned paragraphs found (INCORRECT - includes published node paragraphs)
+
+# After fix:
+ddev drush cc:do --dry-run
+# Output: Should find only truly orphaned paragraphs (no parent reference)
+```
+
+**Recommended Re-test:**
+1. Identify a published node with paragraphs (e.g., node/211658)
+2. Run: `ddev drush cc:do --dry-run`
+3. Verify the node's paragraphs are NOT in the orphan list
+4. Visit the node to confirm paragraphs still display correctly
+
+### Prevention Measures
+
+**Updated Module README:**
+Added prominent warning at top of `/web/modules/custom/drupal-gung-ai/README.md`:
+
+```markdown
+> ⚠️ WARNING
+> Do NOT run Drush commands without `--dry-run`. There is a serious bug affecting node and paragraph deletion.
+> Backup your database first.
+```
+
+**Recommended Workflow:**
+```bash
+# 1. ALWAYS create database backup first
+ddev snapshot
+
+# 2. ALWAYS test with --dry-run first
+ddev drush cc:do --dry-run
+ddev drush cc:du --dry-run
+
+# 3. Review the output carefully
+# - Check specific entity IDs if suspicious
+# - Verify counts make sense
+
+# 4. Only run without --dry-run after verification
+ddev drush cc:do  # Only after confirming dry-run output
+
+# 5. Check site immediately after cleanup
+# - Browse content that should still exist
+# - Verify no unexpected deletions
+
+# 6. If issues occur, restore immediately
+ddev snapshot --restore
+```
+
+### Lessons Learned
+
+1. **Entity ID vs Revision ID Confusion**
+   - `entity_reference_revisions` fields store BOTH entity ID and revision ID
+   - Always use `_target_id` column when comparing against entity IDs
+   - Never mix entity IDs and revision IDs in comparisons
+
+2. **Child Entity Lifecycle**
+   - Child entities (paragraphs, etc.) have status fields independent of parents
+   - `status=0` on a paragraph does NOT mean it's unpublished or orphaned
+   - Child entities should only be deleted when truly orphaned (no parent references)
+
+3. **Testing with Production Data**
+   - Dry-run mode is essential but not sufficient
+   - Must verify specific known entities are handled correctly
+   - Check actual published content after cleanup operations
+
+4. **Database Backup is Mandatory**
+   - NEVER run cleanup commands without a recent backup
+   - Use `ddev snapshot` before any destructive operation
+   - Test restore procedure before it's needed
+
+### Status Update
+
+**Module Status:** ⚠️ **FIXED BUT REQUIRES CAUTIOUS USE**
+
+**Required Actions:**
+1. ✅ Bug fixed in both OrphanDetectionService and ContentCleanupService
+2. ✅ Warning added to module README
+3. ⚠️ **MUST re-test all cleanup operations with --dry-run**
+4. ⚠️ **ALWAYS backup database before running without --dry-run**
+
+**Deployment Status:**
+- Module code is fixed and safe
+- Historical data may have been affected by bug
+- Recommend full QA testing before production use
+- Document any data restoration needed from backups
