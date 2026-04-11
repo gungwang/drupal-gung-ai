@@ -1,5 +1,5 @@
 # WARNING #
-## Do NOT run Drush commands without `--dry-run`. Backup your database first.
+> Try to run Drush commands with `--dry-run` first. Backup your database first.
 
 ===============================================================
 
