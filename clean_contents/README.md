@@ -2,6 +2,8 @@
 ## Do NOT run Drush commands without `--dry-run`. There is a serious bug affecting node and paragraph deletion.
 ## Backup your database first.
 
+===========================
+
 # Clean Contents Module
 
 Drush-based content cleanup and sanitization tool for Drupal development and staging environments.
